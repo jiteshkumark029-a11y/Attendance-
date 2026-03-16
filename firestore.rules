@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "jiteshkumark029@gmail.com" && request.auth.token.email_verified == true));
+    }
+    
+    function isTeacher() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return data.keys().hasAll(['role']) &&
+             (!('uid' in data) || data.uid is string) &&
+             (!('email' in data) || data.email is string) &&
+             data.role in ['admin', 'teacher', 'student'];
+    }
+
+    function isValidAttendanceRecord(data) {
+      return data.keys().hasAll(['userId', 'date', 'checkInTime', 'status']) &&
+             data.userId is string &&
+             data.date is string &&
+             data.checkInTime is string &&
+             data.status in ['present', 'absent', 'late', 'half-day'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin() || isTeacher();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(userId) && request.resource.data.role == 'teacher') || isAdmin() || (isTeacher() && request.resource.data.role == 'student'));
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    ((isOwner(userId) && (request.resource.data.role == resource.data.role || request.resource.data.role == 'teacher')) || isAdmin() || (isTeacher() && resource.data.role == 'student' && request.resource.data.role == 'student'));
+      allow delete: if isAdmin();
+    }
+
+    match /attendance/{recordId} {
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin() || isTeacher();
+      allow create: if isAuthenticated() && isValidAttendanceRecord(request.resource.data) && 
+                    (request.auth.uid == request.resource.data.userId || isAdmin() || isTeacher());
+      allow update: if isAuthenticated() && isValidAttendanceRecord(request.resource.data) && 
+                    ((request.auth.uid == resource.data.userId && request.resource.data.userId == resource.data.userId) || isAdmin() || isTeacher());
+      allow delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}

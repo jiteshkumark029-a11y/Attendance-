@@ -1,0 +1,65 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the attendance system",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "teacher", "student"] },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "AttendanceRecord": {
+      "title": "Attendance Record",
+      "description": "A single day's attendance for a user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "checkInTime": { "type": "string", "format": "date-time" },
+        "checkOutTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["present", "absent", "late", "half-day"] },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "faceVerified": { "type": "boolean" },
+        "qrVerified": { "type": "boolean" }
+      },
+      "required": ["userId", "date", "checkInTime", "status"]
+    },
+    "Settings": {
+      "title": "App Settings",
+      "description": "Global settings for the attendance app",
+      "type": "object",
+      "properties": {
+        "themeColor": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "workHoursStart": { "type": "string" },
+        "workHoursEnd": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "attendance/{recordId}": {
+      "schema": "AttendanceRecord",
+      "description": "Attendance records"
+    },
+    "settings/{settingId}": {
+      "schema": "Settings",
+      "description": "Global settings"
+    }
+  }
+}
